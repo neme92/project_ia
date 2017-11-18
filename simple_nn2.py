@@ -38,12 +38,11 @@ from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
 
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
-img_dataset =  ImageFolder(root='dictionary/img_2', transform=ToTensor())
+img_dataset =  ImageFolder(root='img_2', transform=ToTensor())
 
 #ratio = 0.80      # 80% training- 20% testing
 
 class myDataset(Dataset):
-
     def __init__(self, datasets):
         self.datasets = datasets
         self.lengths = [len(d) for d in datasets]
@@ -68,7 +67,7 @@ class myDataset(Dataset):
     def __len__(self):
         return self.length
 
-
+img_dataset = myDataset(img_dataset)
 # Create loaders
 #train_dataset = torch.utils.data.DataLoader(dataset=img_dataset[:80000], batch_size=batch_size, shuffle=True)
 #test_dataset = torch.utils.data.DataLoader(dataset=img_dataset[80001:100000], batch_size=batch_size, shuffle=True)
