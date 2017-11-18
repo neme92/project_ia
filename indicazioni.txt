@@ -1,0 +1,55 @@
+I moduli principali del modello sono un layer LSTM che prende in 
+ingresso l'immagine come sequenza di colonne di pixel (ora spiego 
+meglio) e un layer lineare che prende l'ultimo stato dell'LSTM 
+e funge da classificatore softmax a due uscite.
+
+L'immagine può essere rappresentata in Pytorch come un tensore t 
+di dimensioni (h,w). In generale, è possibile leggere ciascuna 
+colonna come t[:,j], dove j è l'indice della colonna 
+e va da 0 a w-1; tale indicizzazione ritorna un tensore 
+di dimensione (h).
+  
+Tuttavia, dato che l'input dell'LSTM 
+(http://pytorch.org/docs/master/nn.html#lstm) deve essere 
+(seq_len, batch, input_size) o (batch, seq_len, input_size) 
+se il modulo viene passato con batch_first=True, la cosa 
+più semplice da fare è trasporre l'immagine (t.t()),
+in modo da avere come dimensione (w,h), che corrispondono 
+appunto a (seq_len, input_size), dato che l'input sono le colonne. 
+Dopodichè, a seconda di come si implementa la gestione delle 
+mini-batch, si possono lasciare in quel modo e far gestire a 
+DataLoader (in tal caso bisogna implementare una classe Dataset,
+che comunque è banale: http://pytorch.org/docs/master/data.html),
+oppure chiamare unsqueeze_(0) (se batch_first=True) o 
+unsqueeze_(1) (se batch_first=False) sul tensore,
+che aggiunge una dimensione per le batch, 
+rendendo l'input idoneo per nn.LSTM.
+
+L'output dell'LSTM, sempre secondo la documentazione,
+avrà dimensione:
+    (seq_len, batch, hidden_size*num_directions) 
+        se batch_first=False,
+    o (batch, seq_len, hidden_size*num_directions) 
+        se batch_first=True, 
+dove num_directions può essere 1 o 2 a seconda del flag 
+bidirectional passato al costruttore. 
+Di questo tensore output bisogna selezionare solamente 
+l'ultimo stato, cioè (ad es., se batch_first=True), 
+output[:,-1,:], che sarà di dimensione 
+(batch, hidden_size*num_directions). 
+Tale vettore può essere passato direttamente al layer lineare,
+che dovrà ritornare un tensore (batch, 2), 
+che andrà poi a un softmax su cui verrà calcolata 
+la loss di classificazione.
+
+
+La definizione del modello è banale: un layer LSTM che processa la sequenza e un layer lineare di classificazione.
+Il punto è che il problema non è più un problema in cui l'input è un'immagine. 
+Se l'immagine originale ha dimensione HxW, questa va ricondotta a una sequenza temporale di W vettori (W è il tempo),
+ciascuno di dimensione H. In questa forma, l'input può essere fornito in ingresso all'LSTM 
+(nella documentazione è specificata la dimensione esatta che deve avere il tensore di input, 
+di cui comunque ho già parlato nell'email precedente).
+
+Una volta definito il modello e il codice per il caricamento dei dati (che sarebbe opportuno, 
+ma non necessario, implementare tramite DataLoader e l'interfaccia Dataset), 
+il resto dell'allenamento è lo stesso di un classificatore con loss NLL.
