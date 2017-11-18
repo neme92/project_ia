@@ -36,13 +36,14 @@ import torch.backends.cudnn as cudnn; cudnn.benchmark = True
 import torchvision.datasets as Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
+from torch.utils.data.dataset import Dataset as DS
 
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 img_dataset =  ImageFolder(root='img_2', transform=ToTensor())
 
 #ratio = 0.80      # 80% training- 20% testing
 
-class myDataset(Dataset):
+class myDataset(DS):
     def __init__(self, datasets):
         self.datasets = datasets
         self.lengths = [len(d) for d in datasets]
@@ -94,34 +95,25 @@ class disModel(nn.Module):
         super(disModel, self).cuda()
 
     def forward(self, x):
-        # Get input info
-        #batch_size = x.size(0)
-        #seq_len = x.size(1)
+        print("Forw\n")
         # Initial state
         h_0 = Variable(torch.zeros(opt.encoder_layers, opt.input_size, opt.lstm_size))
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
         
-        # Prepare lstm state
-        #andrebbe prima di lstm
-        #h_0 = x.unsqueeze(0) # Adds num_layers dimension       #H?
-        #c_0 = Variable(torch.zeros(h_0.size()))                #W?
         # Check CUDA
         if self.is_cuda:
             h_0 = h_0.cuda(async = True)
             c_0 = c_0.cuda(async = True)
+            
         # Compute lstm output
         #output = self.lstm(x, (h_0, c_0))[0][:,-1,:]  #[:,-1,:]   e' l'ultimo stato
         output, _  = self.lstm(x, (h_0, c_0))
 
-        # Compute linear output from last state array
-        #output = output.view(-1, self.lstm_size)
-        #output = self.linear(output)
-
         output = self.linear(output[:, -1, :])
 
-        #output = torch.cat(output, 1)       #qua si dovrebbe concatenare slope e time
+        #output = torch.cat(output, 1)       #concat slope and time features
         
-        # Compute softmax
+        # Compute softmax (commented if train method has his own loss opt)
         #output = F.log_softmax(output)
         #output = output.view(batch_size, output.size(1), -1)
         return output
