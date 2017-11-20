@@ -37,9 +37,12 @@ import torchvision.datasets as Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset as DS
+import numpy as np
 
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
-img_dataset =  ImageFolder(root='img_2', transform=ToTensor())
+img_dataset =  ImageFolder(root='img_short' , transform=ToTensor())
+#img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
+#img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
 
 #ratio = 0.80      # 80% training- 20% testing
 
@@ -51,20 +54,12 @@ class myDataset(DS):
         self.length = np.sum(self.lengths)
 
     def __getitem__(self, index):
-        img, label = self.datasets[index]   #PIL.Image(128, 512)
-        img = ToTensor(img)                 #Image(3, 128, 512)
-        img = img.mean(0)                   #(128,512)
-        img = img.t()                       #(512, 128)
+        img, label = self.datasets[][index]                       #PIL.Image(128, 512)
+        img = img.mean(0)                                       #(128,512)
+        img = img.t()                                           #(512, 128)
         img = 1 - img
         return img, label
-        '''
-        for i, offset in enumerate(self.offsets):
-            if index < offset:
-                if i > 0:
-                    index -= self.offsets[i-1]
-                return self.datasets[i][index]
-        raise IndexError(f'{index} exceeds {self.length}')
-        '''
+
     def __len__(self):
         return self.length
 
@@ -104,7 +99,7 @@ class disModel(nn.Module):
         if self.is_cuda:
             h_0 = h_0.cuda(async = True)
             c_0 = c_0.cuda(async = True)
-            
+
         # Compute lstm output
         #output = self.lstm(x, (h_0, c_0))[0][:,-1,:]  #[:,-1,:]   e' l'ultimo stato
         output, _  = self.lstm(x, (h_0, c_0))
