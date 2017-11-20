@@ -4,7 +4,7 @@ class Options():
 opt = Options()
 
 # Training options
-opt.batch_size = 100
+opt.batch_size = 1
 opt.epochs = 100
 opt.learning_rate = 0.01
 opt.momentum = 0.9
@@ -99,9 +99,9 @@ class disModel(nn.Module):
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
         
         # Check CUDA
-        if self.is_cuda:
-            h_0 = h_0.cuda(async = True)
-            c_0 = c_0.cuda(async = True)
+        #if self.is_cuda:
+        #    h_0 = h_0.cuda(async = True)
+        #    c_0 = c_0.cuda(async = True)
 
         # Compute lstm output
         #output, _  = self.lstm(x, (h_0, c_0))              #before custom dataset
@@ -131,7 +131,8 @@ total = 0
 # Train the Model
 for epoch in range(opt.epochs):
     for i, (images, labels) in enumerate(dataset):
-        images = Variable(images.view(-1, opt.sequence_length, opt.input_size)).cuda()
+        #images = Variable(images.view(-1, opt.sequence_length, opt.input_size)).cuda()
+        images = Variable(images).cuda()
         labels = Variable(labels).cuda()
         
         # Forward + Backward + Optimize
@@ -163,7 +164,7 @@ for images, labels in test_dataset:
     total += labels.size(0)
     correct += (predicted.cpu() == labels).sum()
 
-print('Test Accuracy of the model on the 100000 test images: %d %%' % (100 * correct / total)) 
+print('Test Accuracy of the model on the test images: %d %%' % (100 * correct / total)) 
 
 # Save the Model
 torch.save(myNN.state_dict(), 'myNN.pkl')
