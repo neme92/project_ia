@@ -32,32 +32,31 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim
 import torch.backends.cudnn as cudnn; cudnn.benchmark = True
-#from dataset import Dataset
-import torchvision.datasets as Dataset
+import torchvision.datasets as Datasets
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
-from torch.utils.data.dataset import Dataset as DS
+from torch.utils.data.dataset import Dataset
 import numpy as np
 
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
-img_dataset =  ImageFolder(root='img_short' , transform=ToTensor())
+# img_short: 200 train, 200 test
+# img_train: 80.000 train, 20.000 test
+
+img_dataset = ImageFolder(root='img_short' , transform=ToTensor())
 #img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
 #img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
 
-#ratio = 0.80      # 80% training- 20% testing
-
-class myDataset(DS):
+class myDataset(Dataset):
     def __init__(self, datasets):
         self.datasets = datasets
-        self.lengths = [len(d) for d in datasets]
-        self.offsets = np.cumsum(self.lengths)
-        self.length = np.sum(self.lengths)
+        self.length = len(datasets)
 
+#come fa ad andare out of range con index?
     def __getitem__(self, index):
-        img, label = self.datasets[][index]                       #PIL.Image(128, 512)
-        img = img.mean(0)                                       #(128,512)
-        img = img.t()                                           #(512, 128)
-        img = 1 - img
+        img, label = self.datasets[index]                #PIL.Image(128, 512)
+        img = img.mean(0)                                #(128,512)
+        img = img.t()                                    #(512, 128)
+        img = 1 - img                                    #(512, 128)
         return img, label
 
     def __len__(self):
@@ -68,6 +67,9 @@ img_dataset = myDataset(img_dataset)
 #train_dataset = torch.utils.data.DataLoader(dataset=img_dataset[:80000], batch_size=batch_size, shuffle=True)
 #test_dataset = torch.utils.data.DataLoader(dataset=img_dataset[80001:100000], batch_size=batch_size, shuffle=True)
 dataset = torch.utils.data.DataLoader(dataset=img_dataset, batch_size=opt.batch_size, shuffle=True)
+
+print("Enumerate dataset: " + str(enumerate(dataset)))
+
 # Define model
 class disModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers):
@@ -77,20 +79,21 @@ class disModel(nn.Module):
         self.is_cuda = False
         self.input_size = input_size
         self.lstm_size = opt.lstm_size
+        self.linearOutput = 2                       #binary classification: 0 for dysgraphic, else 1
 
         # Define modules
         # INPUT IMG -> LSTM -> LINEAR -> SOFTMAX -> OUTPUT 
         self.lstm = nn.LSTM(input_size = self.input_size, hidden_size = self.lstm_size, 
                             num_layers = opt.num_layers, batch_first = True, 
                             dropout = 0, bidirectional = False)
-        self.linear = nn.Linear(self.lstm_size, 2)
+        self.linear = nn.Linear(self.lstm_size,  self.linearOutput)
         
     def cuda(self):
         self.is_cuda = True
         super(disModel, self).cuda()
 
     def forward(self, x):
-        print("Forw\n")
+        print("Fw\n")
         # Initial state
         h_0 = Variable(torch.zeros(opt.encoder_layers, opt.input_size, opt.lstm_size))
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
@@ -101,16 +104,18 @@ class disModel(nn.Module):
             c_0 = c_0.cuda(async = True)
 
         # Compute lstm output
-        #output = self.lstm(x, (h_0, c_0))[0][:,-1,:]  #[:,-1,:]   e' l'ultimo stato
-        output, _  = self.lstm(x, (h_0, c_0))
+        #output, _  = self.lstm(x, (h_0, c_0))              #before custom dataset
+        output, _  = self.lstm(x)
 
         output = self.linear(output[:, -1, :])
 
-        #output = torch.cat(output, 1)       #concat slope and time features
+        #output = torch.cat(output, 1)       #concat slope and time features just like this from csv
         
         # Compute softmax (commented if train method has his own loss opt)
+        '''
         #output = F.log_softmax(output)
         #output = output.view(batch_size, output.size(1), -1)
+        '''
         return output
 
 myNN = disModel(opt.input_size, opt.lstm_size, opt.num_layers)
