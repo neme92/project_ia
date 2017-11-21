@@ -4,7 +4,7 @@ class Options():
 opt = Options()
 
 # Training options
-opt.batch_size = 1
+opt.batch_size = 50
 opt.epochs = 100
 opt.learning_rate = 0.01
 opt.momentum = 0.9
@@ -124,38 +124,47 @@ myNN.cuda()      #comment if we are not working with cuda
 # Setup loss and optimizier
 #criterion = lstm_softmax_loss           #this is custom, given from daniele's example
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate, momentum = opt.momentum, weight_decay = opt.weight_decay)
+optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
 
 correct = 0
 total = 0
 # Train the Model
 for epoch in range(opt.epochs):
     for i, (images, labels) in enumerate(dataset):
-        #images = Variable(images.view(-1, opt.sequence_length, opt.input_size)).cuda()
         images = Variable(images).cuda()
         labels = Variable(labels).cuda()
         
+        optimizer.zero_grad()
+
         # Forward + Backward + Optimize
         outputs = myNN(images)
 
         # Compute loss (training only)
-        optimizer.zero_grad()
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-#        
-        _, predicted = torch.max(outputs.data, 1)
+
+        #------- here comes the problem!
+        '''  
+        _, predicted = torch.max(outputs.data, 1)              
         total += labels.size(0)
         correct += (predicted.cpu() == labels).sum()
-#
+
+        
         if (i+1) % 100 == 0:
-            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.data[0], 100 * correct / total))
+            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                    %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.data[0], 100 * correct / total))
+        '''
+        #------- until here
+        if (i+1) % 100 == 0:
+            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.4f' 
+                   %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.data[0]))
 
 # Test the Model
 correct = 0
 total = 0
 for images, labels in test_dataset:
-    images = Variable(images.view(-1, sequence_length, input_size)).cuda()
+    images = Variable(images).cuda()
     outputs = myNN(images)
 
     loss = criterion(outputs, labels)
@@ -164,7 +173,9 @@ for images, labels in test_dataset:
     total += labels.size(0)
     correct += (predicted.cpu() == labels).sum()
 
-print('Test Accuracy of the model on the test images: %d %%' % (100 * correct / total)) 
+    print('Test Accuracy of the model on the test images: %d %%' % (100 * correct / total)) 
 
 # Save the Model
-torch.save(myNN.state_dict(), 'myNN.pkl')
+savingFile = "myNN.pkl"
+print("Saving model as " + savingFile)
+torch.save(myNN.state_dict(), savingFile)
