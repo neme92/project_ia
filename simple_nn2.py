@@ -38,6 +38,8 @@ from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
 import numpy as np
 
+globalCounter = 0
+
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 # img_short: 200 train, 200 test
 # img_train: 80.000 train, 20.000 test
@@ -61,6 +63,17 @@ class myDataset(Dataset):
 
     def __len__(self):
         return self.length
+
+def printTrack():
+    global globalCounter
+    #this just adds a fancy animation
+    animationSet = "|/-\\"
+    animChar = animationSet[globalCounter % len(animationSet)]
+    #end of eyecandy effect
+
+    sys.stdout.write("\r" + animChar + "  Forwarding ")
+    sys.stdout.flush()
+    globalCounter += 1
 
 img_dataset = myDataset(img_dataset)
 # Create loaders
@@ -93,7 +106,7 @@ class disModel(nn.Module):
         super(disModel, self).cuda()
 
     def forward(self, x):
-        print("Fw\n")
+        printTrack()            #print state
         # Initial state
         h_0 = Variable(torch.zeros(opt.encoder_layers, opt.input_size, opt.lstm_size))
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
@@ -122,7 +135,7 @@ myNN = disModel(opt.input_size, opt.lstm_size, opt.num_layers)
 myNN.cuda()      #comment if we are not working with cuda
 
 # Setup loss and optimizier
-#criterion = lstm_softmax_loss           #this is custom, given from daniele's example
+#criterion = lstm_softmax_loss           #this is custom, taken from daniele's example
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
 
@@ -130,9 +143,10 @@ correct = 0
 total = 0
 # Train the Model
 for epoch in range(opt.epochs):
-    for i, (images, labels) in enumerate(dataset):
-        images = Variable(images).cuda()
-        labels = Variable(labels).cuda()
+    for i, (images, labels_cpu) in enumerate(dataset):
+
+        images = Variable(images.cuda())
+        labels = Variable(labels_cpu.cuda())
         
         optimizer.zero_grad()
 
@@ -144,34 +158,26 @@ for epoch in range(opt.epochs):
         loss.backward()
         optimizer.step()
 
-        #------- here comes the problem!
-        '''  
         _, predicted = torch.max(outputs.data, 1)              
         total += labels.size(0)
-        correct += (predicted.cpu() == labels).sum()
+        correct += (predicted.cpu() == labels_cpu).sum()
 
-        
-        if (i+1) % 100 == 0:
-            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                    %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.data[0], 100 * correct / total))
-        '''
-        #------- until here
-        if (i+1) % 100 == 0:
-            print ('Epoch [%d/%d], Step [%d/%d], Loss: %.4f' 
-                   %(epoch+1, num_epochs, i+1, len(train_dataset)//batch_size, loss.data[0]))
+        if (i+1) % 5 == 0:
+            print ('\rEpoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                    %(epoch+1, opt.epochs, i+1, len(img_dataset)//opt.batch_size, loss.data[0], 100 * correct / total))
 
 # Test the Model
 correct = 0
 total = 0
 for images, labels in test_dataset:
-    images = Variable(images).cuda()
+    images = Variable(images.cuda())
     outputs = myNN(images)
 
     loss = criterion(outputs, labels)
 
     _, predicted = torch.max(outputs.data, 1)
     total += labels.size(0)
-    correct += (predicted.cpu() == labels).sum()
+    correct += (predicted.cpu() == labels_cpu).sum()
 
     print('Test Accuracy of the model on the test images: %d %%' % (100 * correct / total)) 
 
