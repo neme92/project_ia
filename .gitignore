@@ -1,4 +1,5 @@
 img_test/*
 img_train/*
 img_full/*
-img_short/*
+img_short_train/*
+img_short_test/*

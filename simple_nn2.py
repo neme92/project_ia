@@ -1,3 +1,5 @@
+#check GPU status using "nvidia-smi" from terminal
+
 # Define options
 class Options():
     pass
@@ -5,7 +7,7 @@ opt = Options()
 
 # Training options
 opt.batch_size = 50
-opt.epochs = 100
+opt.epochs = 5
 opt.learning_rate = 0.01
 opt.momentum = 0.9
 opt.weight_decay = 5e-4
@@ -38,13 +40,12 @@ from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
 import numpy as np
 
-globalCounter = 0
-
 # Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 # img_short: 200 train, 200 test
 # img_train: 80.000 train, 20.000 test
 
-img_dataset = ImageFolder(root='img_short' , transform=ToTensor())
+img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
+img_dataset_test = ImageFolder(root='img_short_test' , transform=ToTensor())
 #img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
 #img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
 
@@ -53,7 +54,6 @@ class myDataset(Dataset):
         self.datasets = datasets
         self.length = len(datasets)
 
-#come fa ad andare out of range con index?
     def __getitem__(self, index):
         img, label = self.datasets[index]                #PIL.Image(128, 512)
         img = img.mean(0)                                #(128,512)
@@ -64,6 +64,7 @@ class myDataset(Dataset):
     def __len__(self):
         return self.length
 
+globalCounter = 0
 def printTrack():
     global globalCounter
     #this just adds a fancy animation
@@ -75,13 +76,15 @@ def printTrack():
     sys.stdout.flush()
     globalCounter += 1
 
-img_dataset = myDataset(img_dataset)
-# Create loaders
-#train_dataset = torch.utils.data.DataLoader(dataset=img_dataset[:80000], batch_size=batch_size, shuffle=True)
-#test_dataset = torch.utils.data.DataLoader(dataset=img_dataset[80001:100000], batch_size=batch_size, shuffle=True)
-dataset = torch.utils.data.DataLoader(dataset=img_dataset, batch_size=opt.batch_size, shuffle=True)
+# Wrapping custom Dataset
+img_dataset_train = myDataset(img_dataset_train)
+img_dataset_test = myDataset(img_dataset_test)
 
-print("Enumerate dataset: " + str(enumerate(dataset)))
+# Create loaders
+dataset_train = torch.utils.data.DataLoader(dataset=img_dataset_train, batch_size=opt.batch_size, shuffle=True)
+dataset_test = torch.utils.data.DataLoader(dataset=img_dataset_test, batch_size=opt.batch_size, shuffle=True)
+
+print("Dataset loaded")
 
 # Define model
 class disModel(nn.Module):
@@ -110,11 +113,6 @@ class disModel(nn.Module):
         # Initial state
         h_0 = Variable(torch.zeros(opt.encoder_layers, opt.input_size, opt.lstm_size))
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
-        
-        # Check CUDA
-        #if self.is_cuda:
-        #    h_0 = h_0.cuda(async = True)
-        #    c_0 = c_0.cuda(async = True)
 
         # Compute lstm output
         #output, _  = self.lstm(x, (h_0, c_0))              #before custom dataset
@@ -139,11 +137,13 @@ myNN.cuda()      #comment if we are not working with cuda
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
 
-correct = 0
-total = 0
+
+print("\n\n** Training starts here **\n")
+train_correct = 0
+train_total = 0
 # Train the Model
 for epoch in range(opt.epochs):
-    for i, (images, labels_cpu) in enumerate(dataset):
+    for i, (images, labels_cpu) in enumerate(dataset_train):
 
         images = Variable(images.cuda())
         labels = Variable(labels_cpu.cuda())
@@ -159,27 +159,30 @@ for epoch in range(opt.epochs):
         optimizer.step()
 
         _, predicted = torch.max(outputs.data, 1)              
-        total += labels.size(0)
-        correct += (predicted.cpu() == labels_cpu).sum()
+        train_total += labels.size(0)
+        train_correct += (predicted.cpu() == labels_cpu).sum()
 
         if (i+1) % 5 == 0:
             print ('\rEpoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                    %(epoch+1, opt.epochs, i+1, len(img_dataset)//opt.batch_size, loss.data[0], 100 * correct / total))
+                    %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
 
+print("\n\n** Testing starts here **\n")
 # Test the Model
-correct = 0
-total = 0
-for images, labels in test_dataset:
+test_correct = 0
+test_total = 0
+for i, (images, labels) in enumerate(dataset_test):
     images = Variable(images.cuda())
     outputs = myNN(images)
 
     loss = criterion(outputs, labels)
 
     _, predicted = torch.max(outputs.data, 1)
-    total += labels.size(0)
-    correct += (predicted.cpu() == labels_cpu).sum()
+    test_total += labels.size(0)
+    test_correct += (predicted.cpu() == labels_cpu).sum()
 
-    print('Test Accuracy of the model on the test images: %d %%' % (100 * correct / total)) 
+    if (i+1) % 5 == 0:
+        print ('\rStep [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
 
 # Save the Model
 savingFile = "myNN.pkl"
