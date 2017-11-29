@@ -1,4 +1,5 @@
-#check GPU status using "nvidia-smi" from terminal
+# check GPU status:
+#       watch -n 0.5 nvidia-smi
 
 # Define options
 class Options():
@@ -7,7 +8,7 @@ opt = Options()
 
 # Training options
 opt.batch_size = 50
-opt.epochs = 5
+opt.epochs = 100
 opt.learning_rate = 0.01
 opt.momentum = 0.9
 opt.weight_decay = 5e-4
@@ -40,14 +41,15 @@ from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
 import numpy as np
 
-# Create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
-# img_short: 200 train, 200 test
-# img_train: 80.000 train, 20.000 test
+# How to create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 
-img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
-img_dataset_test = ImageFolder(root='img_short_test' , transform=ToTensor())
-#img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
-#img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
+#short version dataset: 200 train, 200 test
+#img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
+#img_dataset_test = ImageFolder(root='img_short_test' , transform=ToTensor())
+
+# full version dataset: 80.000 train, 20.000 test
+img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
+img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
 
 class myDataset(Dataset):
     def __init__(self, datasets):
@@ -138,6 +140,50 @@ criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
 
 
+train_correct = 0
+train_total = 0
+test_correct = 0
+test_total = 0
+for epoch in range(opt.epochs):
+    #train phase here
+    for i, (images, labels_cpu) in enumerate(dataset_train):
+        images = Variable(images.cuda())
+        labels = Variable(labels_cpu.cuda())
+        
+        optimizer.zero_grad()
+
+        # Forward + Backward + Optimize
+        outputs = myNN(images)
+
+        # Compute loss (training only)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        _, predicted = torch.max(outputs.data, 1)              
+        train_total += labels.size(0)
+        train_correct += (predicted.cpu() == labels_cpu).sum()
+
+        #print train result
+        if (i+1) % 5 == 0:
+            print ('\rTraining: Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                    %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
+
+    #test phase here
+    for i, (images, test_labels) in enumerate(dataset_test):
+        images = Variable(images.cuda())
+        outputs = myNN(images)
+        test_loss = criterion(outputs, Variable(test_labels.cuda()))
+
+        _, predicted = torch.max(outputs.data, 1)
+        test_total += test_labels.size(0)
+        test_correct += (predicted.cpu() == test_labels).sum()
+        print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+            %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
+
+
+
+'''
 print("\n\n** Training starts here **\n")
 train_correct = 0
 train_total = 0
@@ -166,6 +212,7 @@ for epoch in range(opt.epochs):
             print ('\rEpoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
                     %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
 
+
 print("\n\n** Testing starts here **\n")
 # Test the Model
 test_correct = 0
@@ -174,15 +221,14 @@ for i, (images, labels) in enumerate(dataset_test):
     images = Variable(images.cuda())
     outputs = myNN(images)
 
-    loss = criterion(outputs, labels)
+    test_loss = criterion(outputs, Variable(test_labels.cuda()))
 
     _, predicted = torch.max(outputs.data, 1)
-    test_total += labels.size(0)
-    test_correct += (predicted.cpu() == labels_cpu).sum()
-
-    if (i+1) % 5 == 0:
-        print ('\rStep [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
+    test_total += test_labels.size(0)
+    test_correct += (predicted.cpu() == test_labels).sum()
+    print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+        %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
+'''
 
 # Save the Model
 savingFile = "myNN.pkl"
