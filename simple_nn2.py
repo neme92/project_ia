@@ -29,38 +29,25 @@ opt.encoder_layers = 1
 
 # Imports
 import os, time, torch, sys
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim
 import torch.backends.cudnn as cudnn; cudnn.benchmark = True
 import torchvision.datasets as Datasets
+import numpy as np
+import dysgrData 
+
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
-import numpy as np
-
-from dysgrData import dysgrDataClass
+from torch.utils.data import DataLoader
+from torch.autograd import Variable
+from myDataset import myDatasetClass
 
 # How to create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
-
-DatabaseFeatures = []
-
-#retrieve from csv (in this case .txt) every entry 
-fileTxt = open("db.txt", "r")
-for line in fileTxt:
-    if(not line.startswith("#")):
-        splittedLine = line.split(',')
-        #print("Feature database: Entering " + splittedLine[0], splittedLine[1], splittedLine[2], splittedLine[3].replace("\n", ""))
-        listEntry = dysgrDataClass(splittedLine[0], splittedLine[1], splittedLine[2], splittedLine[3])
-        DatabaseFeatures.append(listEntry)
-
+DatabaseFeatures = dysgrData.loadFeatures()
 if not DatabaseFeatures:
-    print("There was a problem while loading features from db. Aborting now")
     sys.exit(0)
-else:
-    print("DatabaseFeatures has " + str(len(DatabaseFeatures)) + " entries")
 
 #short version dataset: 200 train, 200 test
 #img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
@@ -69,21 +56,6 @@ else:
 # full version dataset: 80.000 train, 20.000 test
 img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
 img_dataset_test =  ImageFolder(root='img_test' , transform=ToTensor())
-
-class myDataset(Dataset):
-    def __init__(self, datasets):
-        self.datasets = datasets
-        self.length = len(datasets)
-
-    def __getitem__(self, index):
-        img, label = self.datasets[index]                #PIL.Image(128, 512)
-        img = img.mean(0)                                #(128,512)
-        img = img.t()                                    #(512, 128)
-        img = 1 - img                                    #(512, 128)
-        return img, label
-
-    def __len__(self):
-        return self.length
 
 globalCounter = 0
 def printTrack():
@@ -98,14 +70,14 @@ def printTrack():
     globalCounter += 1
 
 # Wrapping custom Dataset
-img_dataset_train = myDataset(img_dataset_train)
-img_dataset_test = myDataset(img_dataset_test)
-
+img_dataset_train = myDatasetClass(img_dataset_train)
+img_dataset_test = myDatasetClass(img_dataset_test)
 # Create loaders
 dataset_train = torch.utils.data.DataLoader(dataset=img_dataset_train, batch_size=opt.batch_size, shuffle=True)
 dataset_test = torch.utils.data.DataLoader(dataset=img_dataset_test, batch_size=opt.batch_size, shuffle=True)
 
-print("Dataset loaded")
+if (len(dataset_train) and len(dataset_test)):
+    print("Dataset loaded")
 
 # Define model
 class disModel(nn.Module):
@@ -136,7 +108,6 @@ class disModel(nn.Module):
         c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
 
         # Compute lstm output
-        #output, _  = self.lstm(x, (h_0, c_0))              #before custom dataset
         output, _  = self.lstm(x)
 
         output = self.linear(output[:, -1, :])
@@ -157,7 +128,6 @@ myNN.cuda()      #comment if we are not working with cuda
 #criterion = lstm_softmax_loss           #this is custom, taken from daniele's example
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
-
 
 train_correct = 0
 train_total = 0
