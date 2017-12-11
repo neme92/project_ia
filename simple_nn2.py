@@ -35,15 +35,15 @@ import torch.optim
 import torch.backends.cudnn as cudnn; cudnn.benchmark = True
 import torchvision.datasets as Datasets
 import numpy as np
-import dysgrData 
-import printTrack as pt
+import lib.dysgrData as dysgrData
+import lib.printTrack as pt
 
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-from myDataset import myDatasetClass
+from lib.myDataset import myDatasetClass
 
 # How to create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 DatabaseFeatures = dysgrData.loadFeatures()
