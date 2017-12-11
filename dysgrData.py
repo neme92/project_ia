@@ -18,10 +18,7 @@ def loadFeatures():
             listEntry = dysgrDataClass(splittedLine[0], splittedLine[1], splittedLine[2], splittedLine[3])
             dbList.append(listEntry)
 
-    if not dbList:
-        print("There was a problem while loading features from db. Aborting now")
-        sys.exit(0)
-    else:
+    if dbList:
         print("dbList has " + str(len(dbList)) + " entries")
 
     fileTxt.close()
