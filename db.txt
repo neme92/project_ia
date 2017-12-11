@@ -1,4 +1,4 @@
-imageName, isWithoutDysgraphia,diffAngle, performanceTime 
+#imageName, isWithoutDysgraphia,diffAngle, performanceTime 
 the_1_[0].png,1,0,1.913
 the_1_[1].png,1,0,0.83
 the_1_[2].png,1,0,2.279

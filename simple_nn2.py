@@ -41,7 +41,26 @@ from torchvision.transforms import ToTensor
 from torch.utils.data.dataset import Dataset
 import numpy as np
 
+from dysgrData import dysgrDataClass
+
 # How to create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
+
+DatabaseFeatures = []
+
+#retrieve from csv (in this case .txt) every entry 
+fileTxt = open("db.txt", "r")
+for line in fileTxt:
+    if(not line.startswith("#")):
+        splittedLine = line.split(',')
+        #print("Feature database: Entering " + splittedLine[0], splittedLine[1], splittedLine[2], splittedLine[3].replace("\n", ""))
+        listEntry = dysgrDataClass(splittedLine[0], splittedLine[1], splittedLine[2], splittedLine[3])
+        DatabaseFeatures.append(listEntry)
+
+if not DatabaseFeatures:
+    print("There was a problem while loading features from db. Aborting now")
+    sys.exit(0)
+else:
+    print("DatabaseFeatures has " + str(len(DatabaseFeatures)) + " entries")
 
 #short version dataset: 200 train, 200 test
 #img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
@@ -165,7 +184,7 @@ for epoch in range(opt.epochs):
         train_correct += (predicted.cpu() == labels_cpu).sum()
 
         #print train result
-        if (i+1) % 5 == 0:
+        if (i+1) % 20 == 0:
             print ('\rTraining: Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
                     %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
 
@@ -178,56 +197,58 @@ for epoch in range(opt.epochs):
         _, predicted = torch.max(outputs.data, 1)
         test_total += test_labels.size(0)
         test_correct += (predicted.cpu() == test_labels).sum()
-        print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-            %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
-
+        
+        #print test result
+        if (i+1) % 5 == 0:
+            print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
 
 
 '''
-print("\n\n** Training starts here **\n")
-train_correct = 0
-train_total = 0
-# Train the Model
-for epoch in range(opt.epochs):
-    for i, (images, labels_cpu) in enumerate(dataset_train):
+    print("\n\n** Training starts here **\n")
+    train_correct = 0
+    train_total = 0
+    # Train the Model
+    for epoch in range(opt.epochs):
+        for i, (images, labels_cpu) in enumerate(dataset_train):
 
+            images = Variable(images.cuda())
+            labels = Variable(labels_cpu.cuda())
+            
+            optimizer.zero_grad()
+
+            # Forward + Backward + Optimize
+            outputs = myNN(images)
+
+            # Compute loss (training only)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            _, predicted = torch.max(outputs.data, 1)              
+            train_total += labels.size(0)
+            train_correct += (predicted.cpu() == labels_cpu).sum()
+
+            if (i+1) % 5 == 0:
+                print ('\rEpoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+                        %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
+
+
+    print("\n\n** Testing starts here **\n")
+    # Test the Model
+    test_correct = 0
+    test_total = 0
+    for i, (images, labels) in enumerate(dataset_test):
         images = Variable(images.cuda())
-        labels = Variable(labels_cpu.cuda())
-        
-        optimizer.zero_grad()
-
-        # Forward + Backward + Optimize
         outputs = myNN(images)
 
-        # Compute loss (training only)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+        test_loss = criterion(outputs, Variable(test_labels.cuda()))
 
-        _, predicted = torch.max(outputs.data, 1)              
-        train_total += labels.size(0)
-        train_correct += (predicted.cpu() == labels_cpu).sum()
-
-        if (i+1) % 5 == 0:
-            print ('\rEpoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                    %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
-
-
-print("\n\n** Testing starts here **\n")
-# Test the Model
-test_correct = 0
-test_total = 0
-for i, (images, labels) in enumerate(dataset_test):
-    images = Variable(images.cuda())
-    outputs = myNN(images)
-
-    test_loss = criterion(outputs, Variable(test_labels.cuda()))
-
-    _, predicted = torch.max(outputs.data, 1)
-    test_total += test_labels.size(0)
-    test_correct += (predicted.cpu() == test_labels).sum()
-    print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-        %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
+        _, predicted = torch.max(outputs.data, 1)
+        test_total += test_labels.size(0)
+        test_correct += (predicted.cpu() == test_labels).sum()
+        print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
+            %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
 '''
 
 # Save the Model

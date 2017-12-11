@@ -243,7 +243,7 @@ with open(filename,'r') as f:
 #   samples=5           [1,5]
 
 #heading file, can be omitted
-writeOnFile("imageName, isWithoutDysgraphia,diffAngle, performanceTime \n", "")
+writeOnFile("#imageName, isWithoutDysgraphia,diffAngle, performanceTime \n", "")
 
 #instantiating the threadpool and starting it
 THREAD_NUMBER = 4
