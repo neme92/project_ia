@@ -9,12 +9,12 @@ opt = Options()
 # Training options
 opt.batch_size = 50
 opt.epochs = 100
-opt.learning_rate = 0.01
+opt.learning_rate = 0.001
 opt.momentum = 0.9
 opt.weight_decay = 5e-4
 
 # Model options
-opt.lstm_size = 512
+opt.lstm_size = 128
 
 # Backend options
 opt.no_cuda = False
@@ -23,7 +23,6 @@ opt.no_cuda = False
 opt.input_size = 128
 opt.sequence_length = 512
 opt.num_layers = 1
-opt.encoder_layers = 1
 
 '''---------------------------------------------------'''
 
@@ -64,7 +63,7 @@ img_dataset_train = myDatasetClass(img_dataset_train)
 img_dataset_test = myDatasetClass(img_dataset_test)
 # Create loaders
 dataset_train = torch.utils.data.DataLoader(dataset=img_dataset_train, batch_size=opt.batch_size, shuffle=True)
-dataset_test = torch.utils.data.DataLoader(dataset=img_dataset_test, batch_size=opt.batch_size, shuffle=True)
+dataset_test = torch.utils.data.DataLoader(dataset=img_dataset_test, batch_size=opt.batch_size, shuffle=False)
 
 if (len(dataset_train) and len(dataset_test)):
     print("Dataset loaded")
@@ -93,9 +92,6 @@ class disModel(nn.Module):
 
     def forward(self, x):
         pt.printTrack()            #print state
-        # Initial state
-        h_0 = Variable(torch.zeros(opt.encoder_layers, opt.input_size, opt.lstm_size))
-        c_0 = Variable(torch.zeros(opt.encoder_layers, opt.sequence_length, opt.lstm_size))
 
         # Compute lstm output
         output, _  = self.lstm(x)
@@ -117,13 +113,15 @@ myNN.cuda()      #comment if we are not working with cuda
 # Setup loss and optimizier
 #criterion = lstm_softmax_loss           #this is custom, taken from daniele's example
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
+optimizer = torch.optim.Adam(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
 
 train_correct = 0
 train_total = 0
 test_correct = 0
 test_total = 0
 for epoch in range(opt.epochs):
+    train_loss = 0
+    train_loss_cnt = 0
     #train phase here
     for i, (images, labels_cpu) in enumerate(dataset_train):
         images = Variable(images.cuda())
@@ -142,11 +140,13 @@ for epoch in range(opt.epochs):
         _, predicted = torch.max(outputs.data, 1)              
         train_total += labels.size(0)
         train_correct += (predicted.cpu() == labels_cpu).sum()
+        train_loss += loss.data[0]
+        train_loss_cnt += 1
 
         #print train result
         if (i+1) % 5 == 0:
             print ('\rTraining: Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                    %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, loss.data[0], 100 * train_correct / train_total))
+                    %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, train_loss/train_loss_cnt, 100 * train_correct / train_total))
 
     #test phase here
     for i, (images, test_labels) in enumerate(dataset_test):

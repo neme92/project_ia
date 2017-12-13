@@ -9,7 +9,9 @@ class myDatasetClass(Dataset):
         img, label = self.datasets[index]                #PIL.Image(128, 512)
         img = img.mean(0)                                #(128,512)
         img = img.t()                                    #(512, 128)
-        img = 1 - img                                    #(512, 128)
+        #img = 1 - img                                    #(512, 128)
+        img.sub_(0.5).mul_(2)
+        #print(img)
         return img, label
 
     def __len__(self):

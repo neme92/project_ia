@@ -52,7 +52,8 @@ def binarizeImage(image):
 
 #scales input image to imageSize
 def scaleImage(image):
-    maxWidth, maxHeight =  512, 128
+    #maxWidth, maxHeight =  512, 128
+    maxWidth, maxHeight =  150, 50
     imageSize = maxWidth, maxHeight
     whiteCanvas = Image.new("RGB", imageSize, "white")
     imgTmp = image
@@ -69,7 +70,7 @@ def scaleImage(image):
 #A formatted image is before scaled to a fixed dimension and subsequently binarized
 def formatImage(isWithoutDysgraphia, img):
     imgTmp = scaleImage(img)                
-    imgTmp = binarizeImage(imgTmp)          
+    #imgTmp = binarizeImage(imgTmp)          
     
     return imgTmp
 
@@ -123,8 +124,8 @@ def worker(word):
         bias=str(isWithoutDysgraphia)                   #choosing the bias with values between 0 or 1 
 
         #compose the url
-        url = "https://www.cs.toronto.edu/~graves/handwriting.cgi?text=" + text + "&style=&bias=" + bias + "&samples=" + str(samples)
-
+        #url = "https://www.cs.toronto.edu/~graves/handwriting.cgi?text=" + text + "&style=2&bias=" + bias + "&samples=" + str(samples)
+        url = "https://www.cs.toronto.edu/~graves/handwriting.cgi?text=" + text + "&style=..%2Fdata%2Ftrainset_diff_no_start_all_labels.nc%2C1495%2B898&bias=" + bias + "&samples=" + str(samples)
         #request page
         html = getHtmlFromURL(url)
 
@@ -137,7 +138,7 @@ def worker(word):
         #retrieve and save into "/img" folder
         for i in range(len(imgs)):
             imageName = text + "_" + str(bias) + "_[" + str(i) + "].png"
-            imagePath = os.path.join(imgDirectory, imageName)
+            imagePath = os.path.join(imgDirectory + "/" + bias + "/" + imageName)
             urllib.urlretrieve("data:image/" + imgs[i], imagePath)
 
             imgFile = Image.open(imagePath)
@@ -189,7 +190,7 @@ def writeOnFile(fileStr, word):
         global numberOfWords
 
         counter = counter + 1
-        print (str(counter/numberOfWords) + "% " + " - Thread " + str((multiprocessing.current_process().pid)%4) + " working on '" + word + "'")
+        print ("\r" + str(counter/numberOfWords) + "% " + " - Thread " + str((multiprocessing.current_process().pid)%4) + " working on '" + word + "'")
 
     try:
         with open("db.txt", "a") as resultFile: 
@@ -222,13 +223,16 @@ filename = '10k.txt'
 
 print("Reading from file: '" + filename + "'\n\n\n")
 
-imgDirectory = os.getcwd() + "/img/"
+imgDirectory = os.getcwd() + "/img_new/"
 #image folder destination
 checkDownloadFolder(imgDirectory)   
+checkDownloadFolder(imgDirectory + "/0/")   
+checkDownloadFolder(imgDirectory+ "/1/")      
+
 
 #creating an empty array which has to be fullfilled with words from words.txt file
 arrayWord = []
-with open(filename,'r') as f:
+with open("dictionary/" + filename,'r') as f:
     for line in f:
         for word in line.split():
            arrayWord.append(word)   
