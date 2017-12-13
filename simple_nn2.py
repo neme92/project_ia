@@ -20,8 +20,8 @@ opt.lstm_size = 128
 opt.no_cuda = False
 
 #Img options
-opt.input_size = 128
-opt.sequence_length = 512
+opt.input_size = 50             #image height
+opt.sequence_length = 150       #image lenght
 opt.num_layers = 1
 
 '''---------------------------------------------------'''
@@ -36,6 +36,7 @@ import torchvision.datasets as Datasets
 import numpy as np
 import lib.dysgrData as dysgrData
 import lib.printTrack as pt
+import lib.plotResult as plotResult
 
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
@@ -44,15 +45,16 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from lib.myDataset import myDatasetClass
 
+
+
 # How to create datasets   util: https://discuss.pytorch.org/t/questions-about-imagefolder/774/3
 DatabaseFeatures = dysgrData.loadFeatures()
 if not DatabaseFeatures:
     print("There was a problem while loading features from db. Aborting now")
     sys.exit(0)
 
-#short version dataset: 200 train, 200 test
-#img_dataset_train = ImageFolder(root='img_short_train' , transform=ToTensor())
-#img_dataset_test = ImageFolder(root='img_short_test' , transform=ToTensor())
+trainingResults = []
+testResults = []
 
 # full version dataset: 80.000 train, 20.000 test
 img_dataset_train =  ImageFolder(root='img_train' , transform=ToTensor())
@@ -144,10 +146,13 @@ for epoch in range(opt.epochs):
         train_loss_cnt += 1
 
         #print train result
-        if (i+1) % 5 == 0:
+        if (i+1) % 20 == 0:
             print ('\rTraining: Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
                     %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, train_loss/train_loss_cnt, 100 * train_correct / train_total))
+            trainingResults.append((epoch+1, train_loss/train_loss_cnt, 100 * train_correct / train_total))
 
+    test_loss_print = 0
+    test_loss_cnt = 0
     #test phase here
     for i, (images, test_labels) in enumerate(dataset_test):
         images = Variable(images.cuda())
@@ -157,13 +162,31 @@ for epoch in range(opt.epochs):
         _, predicted = torch.max(outputs.data, 1)
         test_total += test_labels.size(0)
         test_correct += (predicted.cpu() == test_labels).sum()
+        test_loss_print += loss.data[0]
+        test_loss_cnt += 1
         
         #print test result
         if (i+1) % 5 == 0:
             print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
-                %(i+1, len(img_dataset_test)//opt.batch_size, loss.data[0], 100 * test_correct / test_total))
+                %(i+1, len(img_dataset_test)//opt.batch_size, test_loss_print/test_loss_cnt, 100 * test_correct / test_total))
+            testResults.append((epoch+1, test_loss_print/test_loss_cnt, 100 * test_correct / test_total))
+
+plotResult.plot(trainingResults, testResults)
 
 # Save the Model
 savingFile = "myNN.pkl"
 print("Saving model as " + savingFile)
 torch.save(myNN.state_dict(), savingFile)
+
+# Save results
+try:
+    with open("trainResults.txt", "w") as resultTrain: 
+        csv_out=csv.writer(resultTrain)
+        for line in trainingResults:
+            csv_out.writerow(line)
+    with open("testResults.txt", "w") as resultTest: 
+        csv_out=csv.writer(resultTest)
+        for line in testResults:
+            csv_out.writerow(line)
+finally:
+    exit
