@@ -37,6 +37,7 @@ import numpy as np
 import lib.dysgrData as dysgrData
 import lib.printTrack as pt
 import lib.plotResult as plotResult
+import csv
 
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import ToTensor
@@ -116,6 +117,7 @@ myNN.cuda()      #comment if we are not working with cuda
 #criterion = lstm_softmax_loss           #this is custom, taken from daniele's example
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(myNN.parameters(), lr = opt.learning_rate)#, momentum = opt.momentum, weight_decay = opt.weight_decay)
+#used ADAM instead Stochastic gradient descent (SGD)
 
 train_correct = 0
 train_total = 0
@@ -145,8 +147,8 @@ for epoch in range(opt.epochs):
         train_loss += loss.data[0]
         train_loss_cnt += 1
 
-        #print train result
-        if (i+1) % 20 == 0:
+        #print and record train results
+        if (i+1) % 100 == 0:
             print ('\rTraining: Epoch [%d/%d], Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
                     %(epoch+1, opt.epochs, i+1, len(img_dataset_train)//opt.batch_size, train_loss/train_loss_cnt, 100 * train_correct / train_total))
             trainingResults.append((epoch+1, train_loss/train_loss_cnt, 100 * train_correct / train_total))
@@ -165,8 +167,8 @@ for epoch in range(opt.epochs):
         test_loss_print += loss.data[0]
         test_loss_cnt += 1
         
-        #print test result
-        if (i+1) % 5 == 0:
+        #print and record test results
+        if (i+1) % 25 == 0:
             print ('\rTesting Step [%d/%d], Loss: %.4f, Accuracy:  %d %%' 
                 %(i+1, len(img_dataset_test)//opt.batch_size, test_loss_print/test_loss_cnt, 100 * test_correct / test_total))
             testResults.append((epoch+1, test_loss_print/test_loss_cnt, 100 * test_correct / test_total))
@@ -178,7 +180,7 @@ savingFile = "myNN.pkl"
 print("Saving model as " + savingFile)
 torch.save(myNN.state_dict(), savingFile)
 
-# Save results
+# Save the results
 try:
     with open("trainResults.txt", "w") as resultTrain: 
         csv_out=csv.writer(resultTrain)
@@ -189,4 +191,4 @@ try:
         for line in testResults:
             csv_out.writerow(line)
 finally:
-    exit
+    print("Done!")
